@@ -1,0 +1,20 @@
+dataset:
+  image_size: 224
+  batch_size: 16
+  num_workers: 2
+
+training:
+  epochs: 5
+  learning_rate: 0.0003
+  freeze_backbone: true
+  seed: 42
+
+model:
+  num_classes: 2
+  pretrained: true
+
+paths:
+  train_dir: data/processed/train
+  val_dir: data/processed/val
+  output_dir: outputs
+
