@@ -1,0 +1,28 @@
+# Base image: same Python version as training
+FROM python:3.10-slim
+
+# Python runtime behavior
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# IMPORTANT: allow `import src...`
+ENV PYTHONPATH=/app
+
+# Working directory
+WORKDIR /app
+
+# System deps (minimal)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy only what inference needs
+COPY src/ src/
+
+# Default command (can be overridden)
+ENTRYPOINT ["python", "src/inference/predict.py"]
+
