@@ -8,3 +8,5 @@ data/processed/
 mlruns/
 outputs/
 mlflow.db
+*.pyc
+
