@@ -19,13 +19,13 @@ This project demonstrates how to build a **scalable, auditable ML pipeline** tha
 
 ## System Overview
 
-The system is deliberately split into **independent components**, following industry best practices:
+The system is deliberately split into **independent components**, following industry best practices.
 
 ### Training Pipeline
-- PyTorch-based image classification
-- Config-driven training
+- PyTorch-based model training
+- Config-driven experiments (YAML)
 - Experiment tracking with MLflow
-- Model versioning via MLflow Model Registry
+- Model artifact management
 - Data lineage via deterministic dataset hashing
 - Fully containerized with Docker
 
@@ -33,7 +33,7 @@ The system is deliberately split into **independent components**, following indu
 - Lightweight, CPU-based inference
 - Separate Docker image from training
 - Stateless prediction on individual images
-- Designed to extend to batch and API-based serving
+- Designed to extend to batch or API-based serving
 
 ---
 
@@ -41,27 +41,105 @@ The system is deliberately split into **independent components**, following indu
 
 ### MLOps & Reproducibility
 - Experiment tracking (parameters, metrics, artifacts)
-- Model versioning and lifecycle management
 - Explicit linkage between:
   - code version (git commit)
   - data version (hash-based fingerprint)
   - trained model artifact
+- Clear separation of configuration and logic
 
 ### Production-Oriented Design
-- Clear separation of training vs inference
-- No data baked into Docker images
+- Training and inference decoupled
+- No datasets or artifacts baked into Docker images
 - Deterministic, repeatable runs
-- Clean project structure suitable for CI/CD extension
+- Project structure suitable for CI/CD extension
+
+---
+
+## Object Detection on Aerial Imagery (Week 4)
+
+The project was extended from image classification to **object detection on high-resolution aerial imagery**, reflecting real-world geospatial computer vision constraints.
+
+### Key additions
+- Conversion of segmentation masks into detection annotations
+- Tiling of large aerial images (e.g. 5000×5000) into trainable patches (512×512)
+- Bounding box remapping per tile
+- PyTorch-compatible detection dataset
+- Fine-tuning a Faster R-CNN model with a custom ROI head
+
+### Engineering considerations
+- Full-resolution aerial imagery is never trained directly
+- Tiling is required to control memory usage and object density
+- Pretrained detection models require explicit replacement of ROI heads
+- Smoke-test training is used before running full training loops
+
+These steps mirror production geospatial CV pipelines used in industry.
 
 ---
 
 ## Running the System (High-Level)
 
-### Training (Docker)
-A dedicated Docker image is used for training. Data and outputs are mounted at runtime to ensure reproducibility and portability.
+### Training
+Training is executed inside a Docker container.  
+Data and output directories are mounted at runtime to ensure portability and reproducibility.
 
-### Inference (Docker)
-A separate inference image loads a trained model and runs predictions on provided images, without requiring training data.
+### Inference
+Inference runs in a separate container using a trained model artifact, without requiring access to training data.
 
-> Detailed commands are intentionally kept minim
+> Low-level commands are intentionally omitted; this repository prioritizes architecture and engineering practices over tutorial-style execution.
+
+---
+
+## Current Scope
+
+- Binary image classification
+- Object detection on aerial imagery
+- CPU-based training and inference
+- Small, curated datasets for pipeline validation
+
+---
+
+## Roadmap
+
+Planned extensions include:
+- Detection of additional risk indicators (e.g. solar panels)
+- Multi-class and multi-modal models
+- Detection evaluation metrics (IoU, precision/recall)
+- Model serving via API
+- Automated retraining and monitoring workflows
+
+---
+
+## Notes
+
+- Open datasets are used for development; proprietary data is intentionally excluded.
+- The goal of this project is **engineering credibility**, not benchmark performance.
+- Design choices emphasize traceability, extensibility, and correctness.
+
+---
+## Object Detection on Aerial Imagery
+
+The project was extended from image classification to **object detection** on high-resolution aerial imagery.
+
+### Key additions
+- Conversion of segmentation masks to detection annotations
+- Tiling of large aerial images (5000×5000) into trainable patches (512×512)
+- Bounding box remapping per tile
+- PyTorch-compatible detection dataset
+- Faster R-CNN fine-tuning with a custom detection head
+
+### Engineering considerations
+- Full-resolution aerial imagery is never trained directly
+- Tiling is required to control memory usage and object density
+- Pretrained detection models require explicit replacement of ROI heads
+- A smoke-test training step is used before full training runs
+
+This mirrors real-world geospatial computer vision pipelines used in production systems.
+
+
+---
+
+## Disclaimer
+
+This project is for educational and demonstration purposes only and is not affiliated with or representative of any specific company or proprietary system.
+
 
