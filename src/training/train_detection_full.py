@@ -1,10 +1,12 @@
 import torch
 from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.transforms import ToTensor
+import mlflow
 
 from src.data.detection_dataset import DetectionDataset
+from src.training.evaluation import match_predictions
 
 
 def collate_fn(batch):
@@ -12,6 +14,9 @@ def collate_fn(batch):
 
 
 def build_model(num_classes: int):
+    """
+    Build Faster R-CNN with a custom detection head.
+    """
     model = fasterrcnn_resnet50_fpn(pretrained=True)
 
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -40,6 +45,42 @@ def train_one_epoch(model, dataloader, optimizer, device):
         running_loss += losses.item()
 
     return running_loss / len(dataloader)
+
+
+@torch.no_grad()
+def evaluate(model, dataloader, device, iou_threshold=0.5):
+    model.eval()
+
+    total_tp = 0
+    total_fp = 0
+    total_fn = 0
+
+    for images, targets in dataloader:
+        images = [img.to(device) for img in images]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        outputs = model(images)
+
+        for output, target in zip(outputs, targets):
+            pred_boxes = output["boxes"].cpu()
+            pred_scores = output["scores"].cpu()
+            gt_boxes = target["boxes"].cpu()
+
+            tp, fp, fn = match_predictions(
+                pred_boxes,
+                pred_scores,
+                gt_boxes,
+                iou_threshold=iou_threshold,
+            )
+
+            total_tp += tp
+            total_fp += fp
+            total_fn += fn
+
+    precision = total_tp / max(total_tp + total_fp, 1)
+    recall = total_tp / max(total_tp + total_fn, 1)
+
+    return precision, recall
 
 
 def main():
@@ -71,28 +112,61 @@ def main():
         collate_fn=collate_fn,
     )
 
-    model = build_model(num_classes=2).to(device)
+    mlflow.set_experiment("cv-risk-week5-detection")
 
-    optimizer = torch.optim.SGD(
-        [p for p in model.parameters() if p.requires_grad],
-        lr=0.005,
-        momentum=0.9,
-        weight_decay=0.0005,
-    )
+    with mlflow.start_run():
+        mlflow.log_params({
+            "model": "fasterrcnn_resnet50_fpn",
+            "num_classes": 1,
+            "tile_size": 512,
+            "iou_threshold": 0.5,
+            "batch_size": 2,
+            "optimizer": "SGD",
+            "learning_rate": 0.005,
+        })
 
-    epochs = 10
+        model = build_model(num_classes=2).to(device)
 
-    for epoch in range(epochs):
-        train_loss = train_one_epoch(
-            model, train_loader, optimizer, device
+        optimizer = torch.optim.SGD(
+            [p for p in model.parameters() if p.requires_grad],
+            lr=0.005,
+            momentum=0.9,
+            weight_decay=0.0005,
         )
 
-        print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
+        epochs = 10
 
-    torch.save(
-        model.state_dict(),
-        "outputs/models/detection_model.pt",
-    )
+        for epoch in range(epochs):
+            train_loss = train_one_epoch(
+                model, train_loader, optimizer, device
+            )
+
+            precision, recall = evaluate(
+                model, val_loader, device
+            )
+
+            mlflow.log_metrics({
+                "train_loss": train_loss,
+                "val_precision": precision,
+                "val_recall": recall,
+            }, step=epoch)
+
+            print(
+                f"Epoch {epoch + 1}/{epochs} | "
+                f"Train Loss: {train_loss:.4f} | "
+                f"Precision: {precision:.4f} | "
+                f"Recall: {recall:.4f}"
+            )
+
+        mlflow.pytorch.log_model(
+            model,
+            artifact_path="model",
+        )
+
+        torch.save(
+            model.state_dict(),
+            "outputs/models/detection_model.pt",
+        )
 
 
 if __name__ == "__main__":

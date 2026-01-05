@@ -1,12 +1,15 @@
-__pycache__/
+# Data
+data/
+*.zip
+
+# Outputs / artifacts
 outputs/
-data/raw/
-data/processed/
+mlruns/
+mlflow.db
+
+# Python
+__pycache__/
+*.pyc
 .env
 *.pt
 *.pth
-mlruns/
-outputs/
-mlflow.db
-*.pyc
-
