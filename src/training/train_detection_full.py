@@ -7,6 +7,7 @@ import mlflow
 
 from src.data.detection_dataset import DetectionDataset
 from src.training.evaluation import match_predictions
+from tqdm import tqdm
 
 
 def collate_fn(batch):
@@ -31,7 +32,7 @@ def train_one_epoch(model, dataloader, optimizer, device):
     model.train()
     running_loss = 0.0
 
-    for images, targets in dataloader:
+    for images, targets in tqdm(dataloader, desc="Training"):
         images = [img.to(device) for img in images]
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -45,6 +46,7 @@ def train_one_epoch(model, dataloader, optimizer, device):
         running_loss += losses.item()
 
     return running_loss / len(dataloader)
+
 
 
 @torch.no_grad()
@@ -97,6 +99,10 @@ def main():
         annotation_dir="data/detection_tiled/val/annotations",
         transforms=ToTensor(),
     )
+
+    # ---- TEMP: cap dataset for quick run ----
+    # train_ds.images = train_ds.images[:100]
+    # val_ds.images = val_ds.images[:40]
 
     train_loader = DataLoader(
         train_ds,
